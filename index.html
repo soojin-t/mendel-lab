@@ -468,9 +468,10 @@
                     <!-- [수정] 1회 교배 10번 후 열림 -->
                     <button id="step0Run30Btn" onclick="runStep0Sim(50)" disabled class="bg-emerald-600 text-white font-extrabold text-xs py-2.5 px-2 rounded-xl hover:bg-emerald-700 transition active:scale-95 shadow disabled:opacity-50 disabled:cursor-not-allowed">
                         ⚡ 50회 교배
-                        <span id="step0Run30Hint" class="block text-[12px] font-sans font-bold opacity-95">🔒 1회 교배 0/10번 하면 열려요</span>
                     </button>
                 </div>
+                <!-- [수정] 잠금 안내 + 활성화 후 반복 횟수 안내를 버튼 아래 별도 줄로 표시 -->
+                <p id="step0Run30Hint" class="text-[12px] font-bold text-center rounded-lg px-3 py-1.5 border bg-slate-50 border-slate-200 text-slate-600 break-keep">🔒 1회 교배 0/10번 하면 열려요</p>
                 <button onclick="confirmResetStep0()" class="w-full bg-slate-100 text-slate-600 font-bold text-xs py-2 rounded-lg hover:bg-slate-200 transition">
                     🔄 모의실험 결과 초기화
                 </button>
@@ -1307,6 +1308,7 @@
             updateStep0UI();
             // [추가] 진행 기록
             stepProgress.step0.run30Count++;
+            updateStep0Run30Button();
             refreshStepProgress('step0');
         }
 
@@ -3690,9 +3692,14 @@
                 p.completedAt = new Date();
                 const info = STEP_INFO[stepKey];
                 const next = STEP_ORDER[STEP_ORDER.indexOf(stepKey) + 1];
-                showAppToast(next
-                    ? `🎉 ${info.num}단계 완료! ${STEP_INFO[next].num}단계로 넘어가세요.`
-                    : '🏆 모든 단계 완료! 전체 학습 결과 이미지를 저장해 선생님께 제출하세요.');
+                // [수정] 1단계는 수업 진도에 맞춰 선생님 안내로 이동하므로 다음 단계 이동을 재촉하지 않습니다.
+                if (stepKey === 'step0') {
+                    showAppToast(`🎉 ${info.num}단계 완료! 결과 이미지를 저장하세요.`);
+                } else {
+                    showAppToast(next
+                        ? `🎉 ${info.num}단계 완료! ${STEP_INFO[next].num}단계로 넘어가세요.`
+                        : '🏆 모든 단계 완료! 전체 학습 결과 이미지를 저장해 선생님께 제출하세요.');
+                }
             }
             renderStepCompletePanel(stepKey);
             refreshStepTabs();
@@ -4238,6 +4245,7 @@
         }
 
         // 1단계: 1회 교배 10번 전에는 50회 교배 잠금
+        //        잠금이 풀린 뒤에는 50회 교배를 10번 이상 하도록 안내
         function updateStep0Run30Button() {
             const btn = document.getElementById('step0Run30Btn');
             const hint = document.getElementById('step0Run30Hint');
@@ -4245,8 +4253,22 @@
             const n = stepProgress.step0.singleDraws;
             const unlocked = n >= STEP0_SINGLE_REQUIRED;
             btn.disabled = !unlocked;
-            if (hint) hint.innerText = unlocked ? '' : `🔒 1회 교배 ${n}/${STEP0_SINGLE_REQUIRED}번 하면 열려요`;
-            if (hint) hint.classList.toggle('hidden', unlocked);
+            if (!hint) return;
+
+            const RUN30_REQUIRED = 10;
+            const runs = stepProgress.step0.run30Count;
+            const base = 'text-[12px] font-bold text-center rounded-lg px-3 py-1.5 border break-keep ';
+
+            if (!unlocked) {
+                hint.innerText = `🔒 1회 교배 ${n}/${STEP0_SINGLE_REQUIRED}번 하면 열려요`;
+                hint.className = base + 'bg-slate-50 border-slate-200 text-slate-600';
+            } else if (runs < RUN30_REQUIRED) {
+                hint.innerText = `👉 50회 교배 버튼을 10회 이상 누르세요 (${runs}/${RUN30_REQUIRED})`;
+                hint.className = base + 'bg-amber-50 border-amber-200 text-amber-900';
+            } else {
+                hint.innerText = `✅ 50회 교배 ${runs}번 완료!`;
+                hint.className = base + 'bg-emerald-50 border-emerald-200 text-emerald-800';
+            }
         }
 
         // On Load Page Init
