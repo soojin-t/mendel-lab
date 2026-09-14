@@ -39,8 +39,16 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mendel-lab-default';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const appId = 'mendel-lab-default';
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw0MLeHFoiWY2AdT5Kr1VFM2duQwfEcW8",
+            authDomain: "mendel999-e6189.firebaseapp.com",
+            projectId: "mendel999-e6189",
+            storageBucket: "mendel999-e6189.firebasestorage.app",
+            messagingSenderId: "807184271445",
+            appId: "1:807184271445:web:3804ae5d530dc8cbc72cdc",
+            measurementId: "G-L7G4RX4EQ2"
+        };
 
         let db = null;
         let auth = null;
