@@ -367,7 +367,7 @@
                 <!-- [이동] 탐구 질문 1번: 잡종 1대 표현형 바로 아래 -->
                 <div class="mb-4 bg-white p-3 rounded-xl border-2 border-sky-200 text-sm">
                     <span class="block text-[13px] font-display text-sky-700 mb-1">🧐 탐구 질문 1</span>
-                    <span class="font-extrabold text-slate-800 block mb-1 break-keep">Q1. 대립형질을 선택했을 때 나타나는 잡종 1대의 표현형과 이미지를 통해 확인할 수 있는 멘델의 유전원리는 무엇인가?</span>
+                    <span class="font-extrabold text-slate-800 block mb-1 break-keep">Q1. 대립형질 선택한 후 나타나는 잡종 1대 표현형을 통해 알 수 있는 멘델의 유전원리는 무엇인가?</span>
                     <button onclick="toggleStep0Answer('ans1')" class="text-sm text-emerald-600 font-bold hover:underline mb-1">
                         💡 답안 확인하기
                     </button>
@@ -383,9 +383,6 @@
                         <span>🌸 잡종 1대 완두꽃의 생식세포</span>
                         <span class="text-[12px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-mono whitespace-nowrap shrink-0 ml-2"><span class="step0-geno-UL">Rr</span> × <span class="step0-geno-UL">Rr</span></span>
                     </div>
-                    <p class="text-[12px] text-slate-500 leading-relaxed mb-3 break-keep">
-                        완두는 한 꽃 안에서 수술의 꽃가루가 암술머리에 붙어 수정되는 자가수분을 합니다.
-                    </p>
                     <div class="grid grid-cols-2 gap-3 text-center">
                         <!-- Stamen: Pollen -->
                         <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 flex flex-col items-center">
@@ -426,7 +423,7 @@
                     <h2 class="text-lg font-bold text-slate-800">잡종 1대의 자가수분 모의 교배 실험</h2>
                 </div>
                 <p class="text-xs text-slate-500 mb-2 leading-relaxed break-keep">
-                    꽃가루 1개와 난세포 1개를 무작위로 골라 수정시킨 후, 자손의 유전자 조합을 기록합니다.
+                    꽃가루 1개, 난세포 1개가 무작위로 만나 만들어진 자손의 유전자형, 표현형을 확인합니다
                 </p>
                 <!-- [추가] 결과표 확인 안내 -->
                 <p class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 leading-relaxed break-keep">
@@ -3677,9 +3674,12 @@
             return getStepChecklist(stepKey).every(item => item.done);
         }
 
+        // 1단계와 2단계는 언제나 열려 있는 별도 접근 단계입니다(앞 단계 조건 없음).
+        // 3단계부터는 바로 앞 단계의 체크리스트를 모두 완료해야 열립니다.
         function isStepUnlocked(stepKey) {
             const idx = STEP_ORDER.indexOf(stepKey);
-            if (TEACHER_MODE || idx <= 0) return true;
+            if (TEACHER_MODE) return true;
+            if (idx <= 1) return true; // step0(1단계), step1(2단계): 항상 접근 가능
             return !!stepProgress[STEP_ORDER[idx - 1]].completedAt;
         }
 
@@ -3736,13 +3736,18 @@
                     <span class="sr-only">${item.done ? '완료' : '아직 안 함'}</span>
                 </li>`).join('');
 
-            // [수정] 1·2단계에는 저장 버튼을 두지 않고, 3·4단계에서 지금까지 완료한 단계를 한 번에 저장
-            const hasImageButton = stepKey === 'step2' || stepKey === 'step3';
-            const imageLabel = isLast ? '📷 전체 학습 결과 이미지 저장 (1~4단계)' : '📷 지금까지 완료한 결과 이미지 저장 (1~3단계)';
+            // [수정] 1단계는 별도 접근 단계이므로 1단계 결과만 저장하는 버튼을 제공하고,
+            //        3·4단계에서는 지금까지 완료한 단계를 한 번에 저장
+            const hasImageButton = stepKey === 'step0' || stepKey === 'step2' || stepKey === 'step3';
+            const imageScope = stepKey === 'step0' ? 'step0' : 'all';
+            const imageLabel = stepKey === 'step0'
+                ? '📷 1단계 학습 결과 이미지 저장'
+                : (isLast ? '📷 전체 학습 결과 이미지 저장 (1~4단계)' : '📷 지금까지 완료한 결과 이미지 저장 (1~3단계)');
+            const nextOpen = !nextKey || isStepUnlocked(nextKey) || complete;
             const nextButton = isLast ? '' : `
-                <button onclick="goToStep('${nextKey}')" ${complete || TEACHER_MODE ? '' : 'disabled'}
+                <button onclick="goToStep('${nextKey}')" ${nextOpen ? '' : 'disabled'}
                         class="flex-1 bg-slate-800 text-white text-base py-3 px-4 rounded-xl hover:bg-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
-                    ${complete || TEACHER_MODE ? '' : '🔒 '}${STEP_INFO[nextKey].num}단계로 이동 ▶
+                    ${nextOpen ? '' : '🔒 '}${STEP_INFO[nextKey].num}단계로 이동 ▶
                 </button>`;
 
             panel.innerHTML = `
@@ -3755,18 +3760,24 @@
                     ${complete
                         ? (isLast
                             ? '🎉 모든 단계를 완료했어요! 1~4단계 결과를 한 장에 모은 이미지를 저장하세요.'
-                            : (hasImageButton
-                                ? '🎉 완료했어요! 지금까지 완료한 1~3단계 결과 이미지를 저장하고 다음 단계로 넘어가세요.'
-                                : '🎉 완료했어요! 다음 단계로 넘어가세요. (결과 이미지는 3단계와 4단계에서 한 번에 저장해요.)'))
+                            : (stepKey === 'step0'
+                                ? '🎉 완료했어요! 1단계 결과 이미지를 저장하세요. 다음 단계는 독립의 법칙을 배운 후 선생님의 안내에 따라 이동하세요.'
+                                : (hasImageButton
+                                    ? '🎉 완료했어요! 지금까지 완료한 1~3단계 결과 이미지를 저장하고 다음 단계로 넘어가세요.'
+                                    : '🎉 완료했어요! 다음 단계로 넘어가세요. (결과 이미지는 3단계와 4단계에서 한 번에 저장해요.)')))
                         : (isLast
                             ? '체크리스트를 모두 완료하면 결과 이미지 저장이 열려요.'
                             : (hasImageButton
-                                ? '체크리스트를 모두 완료하면 결과 이미지 저장과 다음 단계 이동이 열려요.'
-                                : '체크리스트를 모두 완료하면 다음 단계 이동이 열려요.'))}
+                                ? (nextOpen
+                                    ? '체크리스트를 모두 완료하면 결과 이미지 저장이 열려요. 다음 단계는 독립의 법칙을 배운 후 선생님의 안내에 따라 이동하세요.'
+                                    : '체크리스트를 모두 완료하면 결과 이미지 저장과 다음 단계 이동이 열려요.')
+                                : (nextOpen
+                                    ? '다음 단계는 독립의 법칙을 배운 후 선생님의 안내에 따라 이동하세요. 체크리스트도 하나씩 완료해 보세요.'
+                                    : '체크리스트를 모두 완료하면 다음 단계 이동이 열려요.')))}
                 </p>
                 <div class="flex flex-col sm:flex-row gap-2">
                     ${hasImageButton ? `
-                    <button onclick="openResultImage('all')" ${complete ? '' : 'disabled'}
+                    <button onclick="openResultImage('${imageScope}')" ${complete ? '' : 'disabled'}
                             class="flex-1 bg-emerald-600 text-white text-base py-3 px-4 rounded-xl hover:bg-emerald-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
                         ${imageLabel}
                     </button>` : ''}
