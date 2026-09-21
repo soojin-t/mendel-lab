@@ -3049,7 +3049,8 @@
         const QUIZ_TOTAL_POINTS = QUIZ_QUESTIONS.reduce((sum, q) => sum + QUIZ_STAGES[q.stage - 1].points, 0);
 
         let quizState = null;
-        let quizPlayerName = '';
+        // 4단계 시작 화면에서 입력하는 반+닉네임 (결과 이미지에도 함께 사용)
+        let playerTag = '';
 
         function newQuizState() {
             return {
@@ -3097,7 +3098,7 @@
             const done = s.results.filter(Boolean).length;
             document.getElementById('quizProgressText').innerText = `${done} / ${QUIZ_QUESTIONS.length}`;
             document.getElementById('quizProgressBar').style.width = `${(done / QUIZ_QUESTIONS.length) * 100}%`;
-            document.getElementById('quizPlayerName').innerText = quizPlayerName ? `${quizPlayerName} 탐정` : '이름 없는 탐정';
+            document.getElementById('quizPlayerName').innerText = playerTag ? `${playerTag} 탐정` : '이름 없는 탐정';
             renderQuizStageMap();
         }
 
@@ -3189,23 +3190,30 @@
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-2 items-stretch">
-                        <label for="quizNameInput" class="sr-only">탐정 이름 (학번+이름)</label>
-                        <input id="quizNameInput" type="text" maxlength="20" placeholder="학번+이름 (예: 30315 김멘델)"
-                               value="${escapeQuizHtml(quizPlayerName)}"
+                        <label for="quizNameInput" class="sr-only">반+닉네임</label>
+                        <input id="quizNameInput" type="text" maxlength="24" placeholder="반+닉네임 (예: 3반 완두왕)"
+                               value="${escapeQuizHtml(playerTag)}"
                                class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                onkeydown="if(event.key==='Enter'){startQuizGame();}">
                         <button onclick="startQuizGame()" class="bg-emerald-600 text-white font-extrabold text-base px-6 py-3 rounded-xl hover:bg-emerald-700 transition active:scale-95 shadow-md">
                             🚀 게임 시작
                         </button>
                     </div>
+                    <p id="quizNameWarn" class="hidden mt-2 text-sm font-bold text-rose-600 text-center">반과 닉네임을 입력해 주세요.</p>
                 </div>
             `;
         }
 
         function startQuizGame() {
             const nameInput = document.getElementById('quizNameInput');
-            quizPlayerName = nameInput ? nameInput.value.trim() : '';
-            if (!quizPlayerName && typeof studentName !== 'undefined' && studentName) quizPlayerName = studentName; // [추가]
+            const tag = nameInput ? nameInput.value.trim() : '';
+            if (!tag) {
+                const warn = document.getElementById('quizNameWarn');
+                if (warn) warn.classList.remove('hidden');
+                if (nameInput) nameInput.focus();
+                return;
+            }
+            playerTag = tag;
             activeQuizQuestions = buildActiveQuizQuestions(quizRound); // [추가] 재도전이면 단답형은 유사 문항으로
             quizState = newQuizState();
             quizState.started = true;
@@ -3560,7 +3568,6 @@
             };
             stepProgress.step3.attempts.push({ ...stepProgress.step3.result, at: new Date() });
             const starHtml = [1, 2, 3].map(n => `<span class="${n <= grade.stars ? 'text-amber-300' : 'text-white/30'}">★</span>`).join('');
-            const nameText = quizPlayerName ? `${escapeQuizHtml(quizPlayerName)} 탐정` : '이름 없는 탐정';
 
             const review = activeQuizQuestions.map((q, i) => {
                 const r = s.results[i] || { status: 'fail', earned: 0 };
@@ -3593,7 +3600,7 @@
                         <div class="text-6xl mb-1" aria-hidden="true">${grade.emoji}</div>
                         <span class="block text-xs font-black tracking-widest opacity-90">MISSION COMPLETE</span>
                         <h2 class="text-2xl font-black">${grade.title} 등급</h2>
-                        <p class="text-sm font-bold opacity-90 mt-0.5">${nameText}</p>
+                        <p class="text-sm font-bold opacity-90 mt-0.5">${escapeQuizHtml(playerTag)} 탐정</p>
                         <div class="text-3xl tracking-widest my-2" aria-label="별 ${grade.stars}개">${starHtml}</div>
                         <div class="text-5xl font-black font-mono"><span id="quizFinalScore">0</span><span class="text-xl opacity-80"> / ${QUIZ_TOTAL_POINTS}점</span></div>
                         <p class="text-sm mt-2 opacity-95 break-keep">${grade.msg}</p>
@@ -3654,7 +3661,6 @@
             step2: { combos: new Map(), completedAt: null },
             step3: { result: null, attempts: [], completedAt: null }
         };
-        let studentName = '';
 
         // ----- 체크리스트 -----
         function getStepChecklist(stepKey) {
@@ -3874,33 +3880,36 @@
         }
 
         // ----- 결과 이미지 -----
+        // 4단계에서 이미 반+닉네임을 입력했으면 바로 만들고, 아직이면 한 번만 물어본다
         function openResultImage(scope) {
-            const suggested = studentName || (typeof quizPlayerName !== 'undefined' ? quizPlayerName : '');
+            if (playerTag) { createResultImage(scope); return; }
             openAppModal(`
                 <h2 class="text-2xl text-slate-800 mb-1">📷 결과 이미지 만들기</h2>
-                <p class="text-sm text-slate-600 mb-4 break-keep">선생님이 누구의 결과인지 알 수 있도록 <b>학번+이름</b>을 입력하세요.</p>
-                <label for="studentNameInput" class="block text-sm font-bold text-slate-700 mb-1">학번+이름</label>
-                <input id="studentNameInput" data-autofocus type="text" maxlength="20" placeholder="예: 30315 김멘델" value="${escapeQuizHtml(suggested)}"
-                       onkeydown="if(event.key==='Enter'){submitStudentNameAndCreate('${scope}');}"
+                <p class="text-sm text-slate-600 mb-4 break-keep">선생님이 누구의 결과인지 알 수 있도록 <b>반+닉네임</b>을 입력하세요.</p>
+                <label for="playerTagInput" class="block text-sm font-bold text-slate-700 mb-1">반+닉네임</label>
+                <input id="playerTagInput" data-autofocus type="text" maxlength="24" placeholder="예: 3반 완두왕"
+                       onkeydown="if(event.key==='Enter'){submitPlayerTagAndCreate('${scope}');}"
                        class="w-full border-2 border-slate-300 rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-emerald-500 mb-1">
-                <p id="studentNameWarn" class="hidden text-sm font-bold text-rose-600 mb-1">학번과 이름을 입력해 주세요.</p>
+                <p id="playerTagWarn" class="hidden text-sm font-bold text-rose-600 mb-1">반과 닉네임을 입력해 주세요.</p>
                 <div class="flex gap-2 mt-4">
                     <button onclick="closeAppModal()" class="flex-1 bg-slate-100 text-slate-700 text-base py-3 rounded-xl hover:bg-slate-200 transition">취소</button>
-                    <button onclick="submitStudentNameAndCreate('${scope}')" class="flex-1 bg-emerald-600 text-white text-base py-3 rounded-xl hover:bg-emerald-700 transition">이미지 만들기</button>
+                    <button onclick="submitPlayerTagAndCreate('${scope}')" class="flex-1 bg-emerald-600 text-white text-base py-3 rounded-xl hover:bg-emerald-700 transition">이미지 만들기</button>
                 </div>`);
         }
 
-        async function submitStudentNameAndCreate(scope) {
-            const input = document.getElementById('studentNameInput');
-            const name = input ? input.value.trim() : '';
-            if (!name) {
-                document.getElementById('studentNameWarn').classList.remove('hidden');
+        function submitPlayerTagAndCreate(scope) {
+            const input = document.getElementById('playerTagInput');
+            const tag = input ? input.value.trim() : '';
+            if (!tag) {
+                document.getElementById('playerTagWarn').classList.remove('hidden');
                 if (input) input.focus();
                 return;
             }
-            studentName = name;
-            if (typeof quizPlayerName !== 'undefined' && !quizPlayerName) quizPlayerName = name;
+            playerTag = tag;
+            createResultImage(scope);
+        }
 
+        async function createResultImage(scope) {
             openAppModal(`<div class="text-center py-8"><div class="text-4xl mb-2 quiz-current inline-block rounded-full" aria-hidden="true">🖼️</div><p class="text-base font-bold text-slate-700">결과 이미지를 만들고 있어요...</p></div>`);
             try {
                 const canvas = await drawResultCanvas(scope);
@@ -4087,11 +4096,11 @@
                     ctx.stroke();
                     ctx.fillStyle = '#64748b';
                     ctx.font = `700 28px ${BODY}`;
-                    ctx.fillText('학번·이름', PAD + 40, y + 30);
+                    ctx.fillText('반·닉네임', PAD + 40, y + 30);
                     ctx.fillText('저장한 시각', PAD + 40, y + 88);
                     ctx.fillStyle = '#0f172a';
                     ctx.font = `800 36px ${BODY}`;
-                    ctx.fillText(studentName, PAD + 230, y + 24);
+                    ctx.fillText(playerTag, PAD + 230, y + 24);
                     ctx.font = `700 30px ${BODY}`;
                     ctx.fillText(formatDateTimeKo(new Date()), PAD + 230, y + 86);
                     if (isAll) {
@@ -4188,9 +4197,9 @@
         }
 
         function getResultFileName(scope) {
-            const safeName = (studentName || '이름없음').replace(/[\\/:*?"<>|\s]+/g, '_');
+            const safeTag = (playerTag || '이름없음').replace(/[\\/:*?"<>|\s]+/g, '_');
             const part = scope === 'all' ? '전체' : `${STEP_INFO[scope].num}단계`;
-            return `멘델실험실_${part}_${safeName}.png`;
+            return `멘델실험실_${part}_${safeTag}.png`;
         }
 
         function showResultImagePreview(canvas, scope) {
